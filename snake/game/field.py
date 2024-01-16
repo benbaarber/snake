@@ -1,11 +1,17 @@
+from math import hypot, sqrt
+import os
+import time
+
+os.environ["PYGAME_HIDE_SUPPORT_PROMPT"] = "hide"
 import pygame as pg
 import random
+import numpy as np
+from numpy.typing import NDArray
 
-from snake.game.snake import Dir, Snake
+from snake.game.snake import Snake
+from snake.game.util import Dir
 
-WINDOW_WIDTH = 720 / 2
-WINDOW_HEIGHT = 480 / 2
-SNAKE_SPEED = 15
+
 BLACK = pg.Color(0, 0, 0)
 WHITE = pg.Color(255, 255, 255)
 RED = pg.Color(255, 0, 0)
@@ -17,89 +23,135 @@ class Field:
   window: pg.Surface
   fps: pg.time.Clock
   snake: Snake
-  fruit: tuple[int, int]
+  food: NDArray
 
-  def __init__(self) -> None:
-    pg.init()
-    pg.display.set_caption("Snake")
-
-    self.window = pg.display.set_mode((WINDOW_WIDTH, WINDOW_HEIGHT))
-    self.fps = pg.time.Clock()
-
+  def __init__(self, size: int, speed: int, show_window=True) -> None:
+    self.size = size
+    self.speed = speed
+    self.show_window = show_window
     self.snake = Snake()
-    self.spawn_fruit()
+    self.spawn_food()
+
+    if show_window:
+      pg.init()
+      print("PYGAME INIT")
+      pg.display.set_caption("Snake")
+
+      self.window = pg.display.set_mode((self.size * 10, self.size * 10))
+      self.fps = pg.time.Clock()
+
+      pg.event.get()
+
+  def reset(self) -> None:
+    self.snake = Snake()
+    self.spawn_food()
 
   def score(self) -> int:
     return len(self.snake.body) - 4
 
-  def spawn_fruit(self):
-    self.fruit = (
-      random.randrange(1, WINDOW_WIDTH // 10) * 10,
-      random.randrange(1, WINDOW_HEIGHT // 10) * 10,
+  def spawn_food(self) -> None:
+    self.food = np.array(
+      (
+        random.randrange(1, self.size),
+        random.randrange(1, self.size),
+      )
     )
 
-  def show_score(self):
+  def is_in_bounds(self, pos: NDArray) -> bool:
+    return np.all(np.logical_and(pos < self.size, pos > 0))
+
+  def square_to_value(self, pos: NDArray) -> int:
+    if pos == self.food:
+      return 1
+    elif pos in self.snake.body:
+      return -1
+    else:
+      return 0
+
+  def get_state(self) -> NDArray:
+    data = np.zeros((self.size, self.size))
+    data[*self.food] = 1
+    for segment in self.snake.body:
+      data[*segment] = -1
+
+    return data.T.flatten()
+
+  def show_score(self) -> None:
     font = pg.font.SysFont("roboto", 20)
     surface = font.render(f"Score: {self.score()}", True, WHITE)
     rect = surface.get_rect()
     self.window.blit(surface, rect)
 
-  def game_over(self):
+  def show_death(self) -> None:
     font = pg.font.SysFont("roboto", 50)
     surface = font.render(f"Score: {self.score()}", True, RED)
     rect = surface.get_rect()
-    rect.midtop = (WINDOW_WIDTH / 2, WINDOW_HEIGHT / 4)
+    rect.midtop = (self.size * 10 / 2, self.size * 10 / 4)
     self.window.blit(surface, rect)
     pg.display.flip()
 
-  def run(self, render=True):
-    turn = self.snake.direction
+  def render(self) -> None:
+    self.window.fill(BLACK)
+
+    for segment in self.snake.body:
+      pg.draw.rect(self.window, GREEN, pg.Rect(*(segment * 10), 10, 10))
+
+    pg.draw.rect(self.window, WHITE, pg.Rect(*(self.food * 10), 10, 10))
+
+    self.show_score()
+
+    pg.display.update()
+
+  def step(self, turn: Dir) -> int:
+    """Take a step in a direction. Returns a reward based on the outcome."""
     head = self.snake.body[0]
+    self.snake.direction = turn
+
+    t = turn.value
+    self.snake.body.insert(
+      0,
+      np.array((head[0] + (t & 1) * (2 - t), head[1] + ((t + 1) & 1) * (t - 1))),
+    )
+
+    head = self.snake.body[0]
+
+    if self.snake.is_intersecting() or not self.is_in_bounds(head):
+      return -(self.size**4)
+
+    if np.all(head == self.food):
+      self.spawn_food()
+      return self.size**2
+
+    self.snake.body.pop()
+
+    if self.show_window:
+      self.render()
+      self.fps.tick(self.speed)
+
+    d = hypot(*(self.food - head))
+    return 5 - d if d < 5 else 0
+
+  # Play the game manually with arrow keys
+  def play(self) -> None:
+    turn = self.snake.direction
 
     while True:
       for event in pg.event.get():
         if event.type == pg.KEYDOWN:
           match event.key:
-            case pg.K_UP if turn != Dir.DOWN:
-              turn = Dir.UP
-            case pg.K_RIGHT if turn != Dir.LEFT:
-              turn = Dir.RIGHT
-            case pg.K_DOWN if turn != Dir.UP:
-              turn = Dir.DOWN
-            case pg.K_LEFT if turn != Dir.RIGHT:
-              turn = Dir.LEFT
+            case pg.K_UP:
+              if turn != Dir.DOWN:
+                turn = Dir.UP
+            case pg.K_RIGHT:
+              if turn != Dir.LEFT:
+                turn = Dir.RIGHT
+            case pg.K_DOWN:
+              if turn != Dir.UP:
+                turn = Dir.DOWN
+            case pg.K_LEFT:
+              if turn != Dir.RIGHT:
+                turn = Dir.LEFT
 
-      t = turn.value
-      self.snake.body.insert(
-        0, (head[0] + (t & 1) * (2 - t) * 10, head[1] + (((t + 1) & 1) * (t - 1)) * 10)
-      )
-
-      head = self.snake.body[0]
-
-      if head == self.fruit:
-        self.spawn_fruit()
-      else:
-        self.snake.body.pop()
-
-      if render:
-        self.window.fill(BLACK)
-
-        for segment in self.snake.body:
-          pg.draw.rect(self.window, GREEN, pg.Rect(*segment, 10, 10))
-
-        pg.draw.rect(self.window, WHITE, pg.Rect(*self.fruit, 10, 10))
-
-        if (
-          len(set(self.snake.body)) < len(self.snake.body)
-          or head[0] < 0
-          or head[0] > WINDOW_WIDTH - 10
-          or head[1] < 0
-          or head[1] > WINDOW_HEIGHT - 10
-        ):
-          self.game_over()
-          break
-
-        self.show_score()
-
-        pg.display.update()
-        self.fps.tick(SNAKE_SPEED)
+      result = self.step(turn)
+      if result < 0:
+        return self.show_death()
