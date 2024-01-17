@@ -41,12 +41,28 @@ class ReplayMemory:
 class DQN(nn.Module):
   def __init__(self, field_size: int) -> None:
     super(DQN, self).__init__()
+    D_IN = field_size**2
+    D_OUT = 3
+    K_SIZE = 3
+    CONV1_OUT = 10
+    CONV2_OUT = 20
 
-    self.fc1 = nn.Linear(field_size**2, 128).to(DEVICE)
-    self.fc2 = nn.Linear(128, 128).to(DEVICE)
-    self.fc3 = nn.Linear(128, 3).to(DEVICE)
+    self.conv1 = nn.Conv2d(1, CONV1_OUT, K_SIZE).to(DEVICE)
+    self.conv2 = nn.Conv2d(CONV1_OUT, CONV2_OUT, K_SIZE).to(DEVICE)
+
+    reduced_size = int(math.sqrt(D_IN)) - ((K_SIZE - 1) * 2)
+    conv_output_size = CONV2_OUT * (reduced_size**2)
+
+    self.fc1 = nn.Linear(conv_output_size, 32).to(DEVICE)
+    self.fc2 = nn.Linear(32, 64).to(DEVICE)
+    self.fc3 = nn.Linear(64, D_OUT).to(DEVICE)
 
   def forward(self, x: Tensor) -> Tensor:
+    if x.dim() < 4:
+      x = x.unsqueeze(0)
+    x = F.relu(self.conv1(x))
+    x = F.relu(self.conv2(x))
+    x = x.view(x.size(0), -1)
     x = F.relu(self.fc1(x))
     x = F.relu(self.fc2(x))
     q_values = self.fc3(x)
@@ -58,8 +74,8 @@ class DQN(nn.Module):
 
 
 class Brain:
-  BATCH_SIZE = 50  # number of experiences sampled from replay buffer
-  GAMMA = 0.95  # discount factor
+  BATCH_SIZE = 200  # number of experiences sampled from replay buffer
+  GAMMA = 0.99  # discount factor
   EPS_START = 0.9  # starting value of epsilon
   EPS_END = 0.05  # ending value of epsilon
   EPS_DECAY = 1000  # rate of exponential decay of epsilon, higher value = slower decay
@@ -72,7 +88,7 @@ class Brain:
     self.target_net.load_state_dict(self.policy_net.state_dict())
 
     self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-    self.memory = ReplayMemory(250)
+    self.memory = ReplayMemory(5000)
     self.steps_done = 0
 
   def act(self, state: Tensor) -> int:
@@ -99,9 +115,13 @@ class Brain:
       device=DEVICE,
       dtype=torch.bool,
     )
-    non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
+    non_final_next_states = (
+      torch.cat([s for s in batch.next_state if s is not None])
+      .unsqueeze(0)
+      .transpose(0, 1)
+    )
 
-    state_batch = torch.cat(batch.state)
+    state_batch = torch.cat(batch.state).unsqueeze(0).transpose(0, 1)
     action_batch = torch.cat(batch.action)
     reward_batch = torch.cat(batch.reward)
 
@@ -125,9 +145,7 @@ class Brain:
   def play_game(self, field: Field, train=False) -> tuple[int, int]:
     """Train the DQN over a game of snake. Returns tuple (time survived, score)"""
     field.reset()
-    state = torch.tensor(
-      field.get_state(), dtype=torch.float32, device=DEVICE
-    ).unsqueeze(0)
+    state = torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
     for t in count():
       action = self.act(state)
       direction = Dir((field.snake.direction.value + action - 1) % 4)
@@ -135,7 +153,7 @@ class Brain:
       dead = reward < 0
 
       next_state = (
-        torch.tensor(field.get_state(), dtype=torch.float32, device=DEVICE).unsqueeze(0)
+        torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
         if not dead
         else None
       )
@@ -159,7 +177,10 @@ class Brain:
         self.target_net.load_state_dict(tnsd)
 
       if dead:
-        return t, field.score()
+        return (
+          t,
+          field.score(),
+        )
 
   def load_state_dict(self, state_dict: Mapping[str, Any]) -> None:
     self.policy_net.load_state_dict(state_dict)

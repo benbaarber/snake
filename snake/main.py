@@ -56,8 +56,8 @@ if __name__ == "__main__":
     games = []
     if args.episodes is not None:
       for ep in range(args.episodes):
-        print("EP", ep)
         game = brain.play_game(field, train=True)
+        print("EP:", ep, " - Score:", game[1] - 1, " - Time:", game[0])
         games.append(game)
 
         if len(games) % 50 == 0:
@@ -69,7 +69,7 @@ if __name__ == "__main__":
       for ep in count():
         game = brain.play_game(field, train=True)
         games.append(game)
-        print("EP", ep)
+        print("EP:", ep, " - Score:", game[1] - 1, " - Time:", game[0])
 
         if len(games) % 50 == 0:
           report(games)

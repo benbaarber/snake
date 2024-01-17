@@ -69,12 +69,12 @@ class Field:
       return 0
 
   def get_state(self) -> NDArray:
-    data = np.zeros((self.size, self.size))
+    data = np.zeros((self.size, self.size), dtype=np.float32)
     data[*self.food] = 1
     for segment in self.snake.body:
       data[*segment] = -1
 
-    return data.T.flatten()
+    return data.T
 
   def show_score(self) -> None:
     font = pg.font.SysFont("roboto", 20)
@@ -128,8 +128,7 @@ class Field:
       self.render()
       self.fps.tick(self.speed)
 
-    d = hypot(*(self.food - head))
-    return 5 - d if d < 5 else 0
+    return ((self.size * sqrt(2)) - hypot(*(self.food - head))) / (self.size * sqrt(2))
 
   # Play the game manually with arrow keys
   def play(self) -> None:
