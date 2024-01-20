@@ -7,7 +7,6 @@ from snake.game.field import Field
 from snake.game.util import report
 
 FIELD_SIZE = 20
-SNAKE_SPEED = 1000
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
@@ -34,7 +33,9 @@ if __name__ == "__main__":
 
   args = parser.parse_args()
 
-  field = Field(size=FIELD_SIZE, speed=SNAKE_SPEED, show_window=(not args.silent))
+  field = Field(
+    size=FIELD_SIZE, speed=10 if args.manual else 1000, show_window=(not args.silent)
+  )
 
   if args.manual:
     field.play()

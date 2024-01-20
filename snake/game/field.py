@@ -71,7 +71,8 @@ class Field:
   def get_state(self) -> NDArray:
     data = np.zeros((self.size, self.size), dtype=np.float32)
     data[*self.food] = 1
-    for segment in self.snake.body:
+    data[*self.snake.body[0]] = -0.5
+    for segment in self.snake.body[1:]:
       data[*segment] = -1
 
     return data.T
@@ -116,11 +117,11 @@ class Field:
     head = self.snake.body[0]
 
     if self.snake.is_intersecting() or not self.is_in_bounds(head):
-      return -(self.size**4)
+      return -1
 
     if np.all(head == self.food):
       self.spawn_food()
-      return self.size**2
+      return 1
 
     self.snake.body.pop()
 
@@ -128,7 +129,8 @@ class Field:
       self.render()
       self.fps.tick(self.speed)
 
-    return ((self.size * sqrt(2)) - hypot(*(self.food - head))) / (self.size * sqrt(2))
+    # return ((self.size * sqrt(2)) - hypot(*(self.food - head))) / (self.size * sqrt(2))
+    return 0
 
   # Play the game manually with arrow keys
   def play(self) -> None:
