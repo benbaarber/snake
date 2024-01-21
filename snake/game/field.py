@@ -34,7 +34,6 @@ class Field:
 
     if show_window:
       pg.init()
-      print("PYGAME INIT")
       pg.display.set_caption("Snake")
 
       self.window = pg.display.set_mode((self.size * 10, self.size * 10))
@@ -117,14 +116,14 @@ class Field:
 
     head = self.snake.body[0]
 
-    if self.snake.is_intersecting() or not self.is_in_bounds(head):
-      return -1
-
     if np.all(head == self.food):
       self.spawn_food()
       reward = 1
     else:
       self.snake.body.pop()
+
+    if self.snake.is_intersecting() or not self.is_in_bounds(head):
+      return -1
 
     if self.show_window:
       self.render()
@@ -133,8 +132,8 @@ class Field:
     # return ((self.size * sqrt(2)) - hypot(*(self.food - head))) / (self.size * sqrt(2))
     return reward
 
-  # Play the game manually with arrow keys
   def play(self) -> None:
+    """Play the game manually with arrow keys"""
     turn = self.snake.direction
 
     while True:

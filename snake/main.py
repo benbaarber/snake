@@ -58,7 +58,7 @@ if __name__ == "__main__":
     if args.episodes is not None:
       for ep in range(args.episodes):
         game = brain.play_game(field, train=True)
-        print("EP:", ep, " - Score:", game[1] - 1, " - Time:", game[0])
+        print("EP:", ep, " - Score:", game["score"], " - Time:", game["time"])
         games.append(game)
 
         if len(games) % 50 == 0:
@@ -70,12 +70,12 @@ if __name__ == "__main__":
       for ep in count():
         game = brain.play_game(field, train=True)
         games.append(game)
-        print("EP:", ep, " - Score:", game[1] - 1, " - Time:", game[0])
+        print("EP:", ep, " - Score:", game["score"], " - Time:", game["time"])
 
         if len(games) % 50 == 0:
           report(games)
           torch.save(brain.policy_net.state_dict(), "./tmp.pth")
           games = []
   else:
-    time, score = brain.play_game(field)
-    print(f"Score: {score} | Time survived: {time}")
+    game = brain.play_game(field)
+    print(f"Score: {game['score']} | Time survived: {game['time']}")

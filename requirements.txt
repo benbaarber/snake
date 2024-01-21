@@ -1,4 +1,7 @@
 pygame
 torch
 numpy
+ray[tune]
+wandb
+optuna
 argparse

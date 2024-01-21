@@ -2,7 +2,7 @@ from collections import deque, namedtuple
 from itertools import count
 import math
 import random
-from typing import Any, Mapping
+from typing import Any, Mapping, TypedDict
 import torch
 import torch.nn.functional as F
 from torch import Tensor, nn, optim
@@ -39,25 +39,30 @@ class ReplayMemory:
 
 
 class DQN(nn.Module):
-  def __init__(self, field_size: int) -> None:
+  def __init__(
+    self,
+    field_size: int,
+    conv1_out=16,
+    conv2_out=32,
+    fc1_out=32,
+    fc2_out=64,
+    **_,
+  ) -> None:
     super(DQN, self).__init__()
+
     D_IN = field_size**2
     D_OUT = 3
     K_SIZE = 3
-    CONV1_OUT = 10
-    CONV2_OUT = 20
-    FC1_OUT = 32
-    FC2_OUT = 64
 
-    self.conv1 = nn.Conv2d(1, CONV1_OUT, K_SIZE).to(DEVICE)
-    self.conv2 = nn.Conv2d(CONV1_OUT, CONV2_OUT, K_SIZE).to(DEVICE)
+    self.conv1 = nn.Conv2d(1, conv1_out, K_SIZE).to(DEVICE)
+    self.conv2 = nn.Conv2d(conv1_out, conv2_out, K_SIZE).to(DEVICE)
 
     reduced_size = int(math.sqrt(D_IN)) - ((K_SIZE - 1) * 2)
-    conv_output_size = CONV2_OUT * (reduced_size**2)
+    conv_output_size = conv2_out * (reduced_size**2)
 
-    self.fc1 = nn.Linear(conv_output_size, FC1_OUT).to(DEVICE)
-    self.fc2 = nn.Linear(FC1_OUT, FC2_OUT).to(DEVICE)
-    self.fc3 = nn.Linear(FC2_OUT, D_OUT).to(DEVICE)
+    self.fc1 = nn.Linear(conv_output_size, fc1_out).to(DEVICE)
+    self.fc2 = nn.Linear(fc1_out, fc2_out).to(DEVICE)
+    self.fc3 = nn.Linear(fc2_out, D_OUT).to(DEVICE)
 
   def forward(self, x: Tensor) -> Tensor:
     if x.dim() < 4:
@@ -75,28 +80,49 @@ class DQN(nn.Module):
   #   return super().__call__(*args, **kwds)
 
 
+class BrainConfig(TypedDict):
+  buffer_size: int  # size of replay buffer
+  batch_size: int  # number of experiences sampled from replay buffer
+  gamma: float  # discount factor
+  eps_start: float  # starting value of epsilon
+  eps_end: float  # ending value of epsilon
+  eps_decay: float  # rate of exponential decay of epsilon, higher value = slower decay
+  tau: float  # update rate of the target network
+  lr: float  # learning rate of the AdamW optimizer
+
+  conv1_out: int  # number of feature maps for first conv2d layer
+  conv2_out: int  # number of feature maps for second conv2d layer
+  fc1_out: int  # number of features for first fully connected layer
+  fc2_out: int  # number of features for second fully connected layer
+
+
 class Brain:
-  BATCH_SIZE = 200  # number of experiences sampled from replay buffer
+  BATCH_SIZE = 256  # number of experiences sampled from replay buffer
   GAMMA = 0.99  # discount factor
   EPS_START = 0.9  # starting value of epsilon
   EPS_END = 0.05  # ending value of epsilon
   EPS_DECAY = 1000  # rate of exponential decay of epsilon, higher value = slower decay
   TAU = 0.005  # update rate of the target network
-  LR = 1e-4  # Learning rate of the AdamW optimizer
+  LR = 1e-4  # learning rate of the AdamW optimizer
 
-  def __init__(self, field_size: int) -> None:
-    self.policy_net = DQN(field_size).to(DEVICE)
-    self.target_net = DQN(field_size).to(DEVICE)
+  def __init__(self, field_size: int, config: BrainConfig) -> None:
+    self.hp = config
+    self.policy_net = DQN(field_size, **config).to(DEVICE)
+    self.target_net = DQN(field_size, **config).to(DEVICE)
     self.target_net.load_state_dict(self.policy_net.state_dict())
 
-    self.optimizer = optim.AdamW(self.policy_net.parameters(), lr=self.LR, amsgrad=True)
-    self.memory = ReplayMemory(5000)
+    self.optimizer = optim.AdamW(
+      self.policy_net.parameters(), lr=self.hp["lr"], amsgrad=True
+    )
+    self.criterion = nn.SmoothL1Loss()
+    self.memory = ReplayMemory(self.hp["buffer_size"])
     self.steps_done = 0
 
   def act(self, state: Tensor) -> int:
     """Returns an action based on the current state. -1 = turn left, 0 = go straight, 1 = turn right"""
-    eps_threshold = self.EPS_END + (self.EPS_START - self.EPS_END) * math.exp(
-      -1.0 * self.steps_done / self.EPS_DECAY
+    hp = self.hp
+    eps_threshold = hp["eps_end"] + (hp["eps_start"] - hp["eps_end"]) * math.exp(
+      -1.0 * self.steps_done / hp["eps_decay"]
     )
     self.steps_done += 1
     if random.random() > eps_threshold:
@@ -105,11 +131,12 @@ class Brain:
     else:
       return random.randint(0, 2)
 
-  def optim_step(self) -> None:
-    if len(self.memory) < self.BATCH_SIZE:
+  def optim_step(self) -> float:
+    """Perform optimization step, returns loss"""
+    if len(self.memory) < self.hp["batch_size"]:
       return
 
-    experiences = self.memory.sample(self.BATCH_SIZE)
+    experiences = self.memory.sample(self.hp["batch_size"])
     batch = Experience(*zip(*experiences))
 
     non_final_mask = torch.tensor(
@@ -128,23 +155,24 @@ class Brain:
     reward_batch = torch.cat(batch.reward)
 
     q_values = self.policy_net(state_batch).gather(1, action_batch)
-    next_state_values = torch.zeros(self.BATCH_SIZE, device=DEVICE)
+    next_state_values = torch.zeros(self.hp["batch_size"], device=DEVICE)
     with torch.no_grad():
       next_state_values[non_final_mask] = (
         self.target_net(non_final_next_states).max(1).values
       )
 
-    expected_q_values = (next_state_values * self.GAMMA) + reward_batch
+    expected_q_values = (next_state_values * self.hp["gamma"]) + reward_batch
 
-    criterion = nn.SmoothL1Loss()
-    loss = criterion(q_values, expected_q_values.unsqueeze(1))
+    loss = self.criterion(q_values, expected_q_values.unsqueeze(1))
 
     self.optimizer.zero_grad()
     loss.backward()
     nn.utils.clip_grad.clip_grad_value_(self.policy_net.parameters(), 100)
     self.optimizer.step()
 
-  def play_game(self, field: Field, train=False) -> tuple[int, int]:
+    return loss.item()
+
+  def play_game(self, field: Field, train=False) -> dict:
     """Train the DQN over a game of snake. Returns tuple (time survived, score)"""
     field.reset()
     state = torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
@@ -174,15 +202,15 @@ class Brain:
         pnsd, tnsd = self.policy_net.state_dict(), self.target_net.state_dict()
 
         for key in pnsd:
-          tnsd[key] = pnsd[key] * self.TAU + tnsd[key] * (1 - self.TAU)
+          tnsd[key] = pnsd[key] * self.hp["tau"] + tnsd[key] * (1 - self.hp["tau"])
 
         self.target_net.load_state_dict(tnsd)
 
       if dead:
-        return (
-          t,
-          field.score(),
-        )
+        return {
+          "time": t,
+          "score": field.score(),
+        }
 
   def load_state_dict(self, state_dict: Mapping[str, Any]) -> None:
     self.policy_net.load_state_dict(state_dict)
