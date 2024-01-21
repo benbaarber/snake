@@ -29,7 +29,7 @@ class Field:
     self.size = size
     self.speed = speed
     self.show_window = show_window
-    self.snake = Snake()
+    self.snake = Snake(field_size=size)
     self.spawn_food()
 
     if show_window:
@@ -43,7 +43,7 @@ class Field:
       pg.event.get()
 
   def reset(self) -> None:
-    self.snake = Snake()
+    self.snake = Snake(field_size=self.size)
     self.spawn_food()
 
   def score(self) -> int:
@@ -105,6 +105,7 @@ class Field:
 
   def step(self, turn: Dir) -> int:
     """Take a step in a direction. Returns a reward based on the outcome."""
+    reward = 0
     head = self.snake.body[0]
     self.snake.direction = turn
 
@@ -121,16 +122,16 @@ class Field:
 
     if np.all(head == self.food):
       self.spawn_food()
-      return 1
-
-    self.snake.body.pop()
+      reward = 1
+    else:
+      self.snake.body.pop()
 
     if self.show_window:
       self.render()
       self.fps.tick(self.speed)
 
     # return ((self.size * sqrt(2)) - hypot(*(self.food - head))) / (self.size * sqrt(2))
-    return 0
+    return reward
 
   # Play the game manually with arrow keys
   def play(self) -> None:

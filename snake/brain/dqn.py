@@ -46,6 +46,8 @@ class DQN(nn.Module):
     K_SIZE = 3
     CONV1_OUT = 10
     CONV2_OUT = 20
+    FC1_OUT = 32
+    FC2_OUT = 64
 
     self.conv1 = nn.Conv2d(1, CONV1_OUT, K_SIZE).to(DEVICE)
     self.conv2 = nn.Conv2d(CONV1_OUT, CONV2_OUT, K_SIZE).to(DEVICE)
@@ -53,9 +55,9 @@ class DQN(nn.Module):
     reduced_size = int(math.sqrt(D_IN)) - ((K_SIZE - 1) * 2)
     conv_output_size = CONV2_OUT * (reduced_size**2)
 
-    self.fc1 = nn.Linear(conv_output_size, 32).to(DEVICE)
-    self.fc2 = nn.Linear(32, 64).to(DEVICE)
-    self.fc3 = nn.Linear(64, D_OUT).to(DEVICE)
+    self.fc1 = nn.Linear(conv_output_size, FC1_OUT).to(DEVICE)
+    self.fc2 = nn.Linear(FC1_OUT, FC2_OUT).to(DEVICE)
+    self.fc3 = nn.Linear(FC2_OUT, D_OUT).to(DEVICE)
 
   def forward(self, x: Tensor) -> Tensor:
     if x.dim() < 4:
