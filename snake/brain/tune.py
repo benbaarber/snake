@@ -5,7 +5,7 @@ from ray.air.integrations.wandb import WandbLoggerCallback
 from snake.brain.dqn import Brain
 from snake.game.field import Field
 
-TRAIN_EPISODES = 500
+TRAIN_EPISODES = 100
 VAL_EPISODES = 50
 EPOCHS = 5
 FIELD_SIZE = 16
@@ -24,9 +24,6 @@ config = {
   "fc1_out": tune.choice([64, 128, 256]),
   "fc2_out": tune.choice([128, 256, 512]),
 }
-
-
-a = tune.uniform(0, 1)
 
 if __name__ == "__main__":
 
