@@ -11,5 +11,5 @@ class Dir(Enum):
 
 def report(games: list[dict]) -> None:
   print("\nCheckpoint")
-  print("Max time survived:", max(games, key="time")[0])
-  print("High score:", max(games, key="score")[1])
+  print("Max time survived:", max(games, key=itemgetter("time"))["time"])
+  print("High score:", max(games, key=itemgetter("score"))["score"])
