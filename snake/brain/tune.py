@@ -5,9 +5,9 @@ from ray.air.integrations.wandb import WandbLoggerCallback
 from snake.brain.dqn import Brain
 from snake.game.field import Field
 
-TRAIN_EPISODES = 100
-VAL_EPISODES = 50
-EPOCHS = 5
+TRAIN_EPISODES = 50
+EPOCHS = 30
+VAL_EPISODES = 100
 FIELD_SIZE = 16
 
 config = {
