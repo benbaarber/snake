@@ -106,7 +106,7 @@ class Field:
 
   def step(self, turn: Dir) -> int:
     """Take a step in a direction. Returns a reward based on the outcome."""
-    reward = 0
+    reward = -0.05
     head = self.snake.body[0]
     self.snake.direction = turn
 
@@ -156,5 +156,5 @@ class Field:
                 turn = Dir.LEFT
 
       result = self.step(turn)
-      if result < 0:
+      if result == -1:
         return self.show_death()

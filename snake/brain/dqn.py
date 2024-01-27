@@ -51,7 +51,7 @@ class DQN(nn.Module):
     super(DQN, self).__init__()
 
     D_IN = field_size**2
-    D_OUT = 3
+    D_OUT = 4
     K_SIZE = 3
 
     self.conv1 = nn.Conv2d(1, conv1_out, K_SIZE).to(DEVICE)
@@ -178,9 +178,8 @@ class Brain:
     state = torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
     for t in count():
       action = self.act(state)
-      direction = Dir((field.snake.direction.value + action - 1) % 4)
-      reward = field.step(direction)
-      dead = reward < 0
+      reward = field.step(Dir(action))
+      dead = reward == -1
 
       next_state = (
         torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
