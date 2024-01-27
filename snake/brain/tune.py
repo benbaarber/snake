@@ -1,6 +1,7 @@
 from ray import tune, train
 from ray.tune.search.optuna import OptunaSearch
 from ray.air.integrations.wandb import WandbLoggerCallback
+from ray.tune.schedulers import AsyncHyperBandScheduler
 
 from snake.brain.dqn import Brain
 from snake.game.field import Field
@@ -46,7 +47,15 @@ if __name__ == "__main__":
   tuner = tune.Tuner(
     tune.with_resources(objective, resources={"gpu": 1}),
     tune_config=tune.TuneConfig(
-      metric="score", mode="max", num_samples=100, search_alg=OptunaSearch()
+      metric="score",
+      mode="max",
+      num_samples=100,
+      search_alg=OptunaSearch(),
+      scheduler=AsyncHyperBandScheduler(
+        time_attr="time",
+        max_t=1000,
+        grace_period=10,
+      ),
     ),
     run_config=train.RunConfig(callbacks=[WandbLoggerCallback(project="snake")]),
     param_space=config,
