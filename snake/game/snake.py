@@ -9,35 +9,9 @@ class Snake:
   direction: Dir
 
   def __init__(self, field_size: int) -> None:
-    head = (random.randrange(5, field_size - 5), random.randrange(4, field_size - 4))
-    body = [head]
+    head = (random.randrange(2, field_size - 2), random.randrange(2, field_size - 2))
     self.direction = Dir(random.randrange(4))
-    match self.direction:
-      case Dir.UP:
-        body += [
-          (head[0], head[1] + 1),
-          (head[0], head[1] + 2),
-          (head[0], head[1] + 3),
-        ]
-      case Dir.RIGHT:
-        body += [
-          (head[0] - 1, head[1]),
-          (head[0] - 2, head[1]),
-          (head[0] - 3, head[1]),
-        ]
-      case Dir.DOWN:
-        body += [
-          (head[0], head[1] - 1),
-          (head[0], head[1] - 2),
-          (head[0], head[1] - 3),
-        ]
-      case Dir.LEFT:
-        body += [
-          (head[0] + 1, head[1]),
-          (head[0] + 2, head[1]),
-          (head[0] + 3, head[1]),
-        ]
-    self.body = [np.array(e) for e in body]
+    self.body = [np.array(head)]
 
   def is_intersecting(self) -> bool:
     tuples = [tuple(e) for e in self.body]

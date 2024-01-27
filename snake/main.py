@@ -6,7 +6,7 @@ from snake.brain.dqn import Brain
 from snake.game.field import Field
 from snake.game.util import report
 
-FIELD_SIZE = 20
+FIELD_SIZE = 8
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
@@ -34,7 +34,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   field = Field(
-    size=FIELD_SIZE, speed=10 if args.manual else 1000, show_window=(not args.silent)
+    size=FIELD_SIZE, speed=5 if args.manual else 1000, show_window=(not args.silent)
   )
 
   if args.manual:

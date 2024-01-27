@@ -36,7 +36,7 @@ class Field:
       pg.init()
       pg.display.set_caption("Snake")
 
-      self.window = pg.display.set_mode((self.size * 10, self.size * 10))
+      self.window = pg.display.set_mode((self.size * 100, self.size * 100))
       self.fps = pg.time.Clock()
 
       pg.event.get()
@@ -46,18 +46,20 @@ class Field:
     self.spawn_food()
 
   def score(self) -> int:
-    return len(self.snake.body) - 4
+    return len(self.snake.body) - 1
 
   def spawn_food(self) -> None:
-    self.food = np.array(
-      (
-        random.randrange(1, self.size),
-        random.randrange(1, self.size),
-      )
-    )
+    body_as_tuples = [tuple(e) for e in self.snake.body]
+    open_squares = [
+      (x, y)
+      for x in range(self.size)
+      for y in range(self.size)
+      if (x, y) not in body_as_tuples
+    ]
+    self.food = np.array(random.choice(open_squares))
 
   def is_in_bounds(self, pos: NDArray) -> bool:
-    return np.all(np.logical_and(pos < self.size, pos > 0))
+    return np.all(np.logical_and(pos < self.size, pos >= 0))
 
   def square_to_value(self, pos: NDArray) -> int:
     if pos == self.food:
@@ -86,7 +88,7 @@ class Field:
     font = pg.font.SysFont("roboto", 50)
     surface = font.render(f"Score: {self.score()}", True, RED)
     rect = surface.get_rect()
-    rect.midtop = (self.size * 10 / 2, self.size * 10 / 4)
+    rect.midtop = (self.size * 100 / 2, self.size * 100 / 4)
     self.window.blit(surface, rect)
     pg.display.flip()
 
@@ -94,9 +96,9 @@ class Field:
     self.window.fill(BLACK)
 
     for segment in self.snake.body:
-      pg.draw.rect(self.window, GREEN, pg.Rect(*(segment * 10), 10, 10))
+      pg.draw.rect(self.window, GREEN, pg.Rect(*(segment * 100), 100, 100))
 
-    pg.draw.rect(self.window, WHITE, pg.Rect(*(self.food * 10), 10, 10))
+    pg.draw.rect(self.window, WHITE, pg.Rect(*(self.food * 100), 100, 100))
 
     self.show_score()
 

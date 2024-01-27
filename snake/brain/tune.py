@@ -8,7 +8,7 @@ from snake.game.field import Field
 TRAIN_EPISODES = 50
 EPOCHS = 30
 VAL_EPISODES = 100
-FIELD_SIZE = 16
+FIELD_SIZE = 8
 
 config = {
   "buffer_size": tune.choice([1000, 5000, 10000, 20000, 50000]),
