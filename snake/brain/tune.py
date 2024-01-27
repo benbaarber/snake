@@ -45,7 +45,9 @@ if __name__ == "__main__":
 
   tuner = tune.Tuner(
     tune.with_resources(objective, resources={"gpu": 1}),
-    tune_config=tune.TuneConfig(metric="score", mode="max", search_alg=OptunaSearch()),
+    tune_config=tune.TuneConfig(
+      metric="score", mode="max", num_samples=100, search_alg=OptunaSearch()
+    ),
     run_config=train.RunConfig(callbacks=[WandbLoggerCallback(project="snake")]),
     param_space=config,
   )
