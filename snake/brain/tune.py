@@ -52,8 +52,8 @@ if __name__ == "__main__":
       num_samples=100,
       search_alg=OptunaSearch(),
       scheduler=AsyncHyperBandScheduler(
-        time_attr="time",
-        max_t=1000,
+        time_attr="time_this_iter_s",
+        max_t=60,
         grace_period=10,
       ),
     ),
