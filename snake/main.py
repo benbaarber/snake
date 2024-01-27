@@ -41,7 +41,23 @@ if __name__ == "__main__":
     field.play()
     exit()
 
-  brain = Brain(field_size=FIELD_SIZE)
+  brain = Brain(
+    field_size=FIELD_SIZE,
+    config={
+      "buffer_size": 1000,
+      "batch_size": 128,
+      "gamma": 0.99,
+      "eps_start": 0.9,
+      "eps_end": 0.05,
+      "eps_decay": 2000,
+      "lr": 1e-4,
+      "tau": 1e-3,
+      "conv1_out": 16,
+      "conv2_out": 32,
+      "fc1_out": 64,
+      "fc2_out": 128,
+    },
+  )
 
   if args.path:
     try:
