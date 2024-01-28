@@ -80,9 +80,9 @@ if __name__ == "__main__":
 
       if len(games) % 50 == 0:
         report(games)
-        torch.save(brain.policy_net.state_dict(), "./tmp.pt")
+        torch.save(brain.policy_net.state_dict(), "./tmp.pth")
         games = []
-    torch.save(brain.policy_net.state_dict(), "./tmp.pt")
+    torch.save(brain.policy_net.state_dict(), "./tmp.pth")
 
   else:
     for ep in range(args.games or 1):
