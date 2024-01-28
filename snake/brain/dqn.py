@@ -105,7 +105,11 @@ class Brain:
   TAU = 0.005  # update rate of the target network
   LR = 1e-4  # learning rate of the AdamW optimizer
 
-  def __init__(self, field_size: int, config: BrainConfig) -> None:
+  def __init__(
+    self, field_size: int, config: BrainConfig, train=False, loaded=False
+  ) -> None:
+    self.train = train
+    self.loaded = loaded
     self.hp = config
     self.policy_net = DQN(field_size, **config).to(DEVICE)
     self.target_net = DQN(field_size, **config).to(DEVICE)
@@ -120,16 +124,17 @@ class Brain:
 
   def act(self, state: Tensor) -> int:
     """Returns an action based on the current state. -1 = turn left, 0 = go straight, 1 = turn right"""
-    hp = self.hp
-    eps_threshold = hp["eps_end"] + (hp["eps_start"] - hp["eps_end"]) * math.exp(
-      -1.0 * self.steps_done / hp["eps_decay"]
-    )
-    self.steps_done += 1
-    if random.random() > eps_threshold:
-      with torch.no_grad():
-        return torch.argmax(self.policy_net(state)).item()
-    else:
-      return random.randint(0, 2)
+    if self.train and not self.loaded:
+      hp = self.hp
+      eps_threshold = hp["eps_end"] + (hp["eps_start"] - hp["eps_end"]) * math.exp(
+        -1.0 * self.steps_done / hp["eps_decay"]
+      )
+      self.steps_done += 1
+      if random.random() < eps_threshold:
+        return random.randint(0, 2)
+
+    with torch.no_grad():
+      return torch.argmax(self.policy_net(state)).item()
 
   def optim_step(self) -> float:
     """Perform optimization step, returns loss"""
@@ -172,7 +177,7 @@ class Brain:
 
     return loss.item()
 
-  def play_game(self, field: Field, train=False) -> dict:
+  def play_game(self, field: Field) -> dict:
     """Train the DQN over a game of snake. Returns tuple (time survived, score)"""
     field.reset()
     state = torch.from_numpy(field.get_state()).to(DEVICE).unsqueeze(0)
@@ -186,7 +191,7 @@ class Brain:
         if not dead
         else None
       )
-      if train:
+      if self.train:
         self.memory.push(
           state,
           torch.tensor([[action]], dtype=torch.long, device=DEVICE),
@@ -195,7 +200,7 @@ class Brain:
         )
       state = next_state
 
-      if train:
+      if self.train:
         self.optim_step()
 
         pnsd, tnsd = self.policy_net.state_dict(), self.target_net.state_dict()

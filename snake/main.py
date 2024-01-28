@@ -19,9 +19,9 @@ if __name__ == "__main__":
     help="Run the Deep Q Learning optimization step",
   )
   parser.add_argument(
-    "-e",
-    "--episodes",
-    help="Number of episodes to train for",
+    "-g",
+    "--games",
+    help="Number of games to play",
     type=int,
   )
   parser.add_argument(
@@ -34,7 +34,7 @@ if __name__ == "__main__":
   args = parser.parse_args()
 
   field = Field(
-    size=FIELD_SIZE, speed=5 if args.manual else 1000, show_window=(not args.silent)
+    size=FIELD_SIZE, speed=5 if args.manual else 10, show_window=(not args.silent)
   )
 
   if args.manual:
@@ -57,6 +57,8 @@ if __name__ == "__main__":
       "fc1_out": 64,
       "fc2_out": 128,
     },
+    train=args.train,
+    loaded=(args.path is not None),
   )
 
   if args.path:
@@ -71,27 +73,18 @@ if __name__ == "__main__":
 
   if args.train:
     games = []
-    if args.episodes is not None:
-      for ep in range(args.episodes):
-        game = brain.play_game(field, train=True)
-        print("EP:", ep, " - Score:", game["score"], " - Time:", game["time"])
-        games.append(game)
+    for ep in range(args.games) if args.games else count():
+      game = brain.play_game(field)
+      print("EP:", ep, " - Score:", game["score"], " - Time:", game["time"])
+      games.append(game)
 
-        if len(games) % 50 == 0:
-          report(games)
-          torch.save(brain.policy_net.state_dict(), "./tmp.pth")
-          games = []
-      torch.save(brain.policy_net.state_dict(), "./tmp.pth")
-    else:
-      for ep in count():
-        game = brain.play_game(field, train=True)
-        games.append(game)
-        print("EP:", ep, " - Score:", game["score"], " - Time:", game["time"])
+      if len(games) % 50 == 0:
+        report(games)
+        torch.save(brain.policy_net.state_dict(), "./tmp.pth")
+        games = []
+    torch.save(brain.policy_net.state_dict(), "./tmp.pth")
 
-        if len(games) % 50 == 0:
-          report(games)
-          torch.save(brain.policy_net.state_dict(), "./tmp.pth")
-          games = []
   else:
-    game = brain.play_game(field)
-    print(f"Score: {game['score']} | Time survived: {game['time']}")
+    for ep in range(args.games or 1):
+      game = brain.play_game(field)
+      print(f"Score: {game['score']} | Time survived: {game['time']}")
