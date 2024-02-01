@@ -76,9 +76,6 @@ class DQN(nn.Module):
 
     return q_values
 
-  # def __call__(self, *args: Any, **kwds: Any) -> Tensor:
-  #   return super().__call__(*args, **kwds)
-
 
 class BrainConfig(TypedDict):
   buffer_size: int  # size of replay buffer
@@ -97,14 +94,6 @@ class BrainConfig(TypedDict):
 
 
 class Brain:
-  BATCH_SIZE = 256  # number of experiences sampled from replay buffer
-  GAMMA = 0.99  # discount factor
-  EPS_START = 0.9  # starting value of epsilon
-  EPS_END = 0.05  # ending value of epsilon
-  EPS_DECAY = 1000  # rate of exponential decay of epsilon, higher value = slower decay
-  TAU = 0.005  # update rate of the target network
-  LR = 1e-4  # learning rate of the AdamW optimizer
-
   def __init__(
     self, field_size: int, config: BrainConfig, train=False, loaded=False
   ) -> None:
@@ -131,7 +120,7 @@ class Brain:
       )
       self.steps_done += 1
       if random.random() < eps_threshold:
-        return random.randint(0, 2)
+        return random.randint(0, 3)
 
     with torch.no_grad():
       return torch.argmax(self.policy_net(state)).item()
